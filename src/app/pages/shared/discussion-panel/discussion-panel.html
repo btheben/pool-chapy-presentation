@@ -1,0 +1,94 @@
+<section class="discussion-panel card">
+  <div class="discussion-header">
+    <div class="discussion-header-main">
+      <div class="discussion-eyebrow">Forum</div>
+      <h2>{{ title }}</h2>
+    </div>
+
+    <div class="discussion-header-actions">
+      <a
+        *ngIf="showViewAllLink"
+        class="discussion-view-all"
+        [routerLink]="['/seasons', seasonLabel, 'discussion']"
+      >
+        Voir tout
+      </a>
+
+      <button
+        type="button"
+        class="discussion-refresh"
+        (click)="loadPosts()"
+        [disabled]="loading"
+      >
+        Rafraîchir
+      </button>
+    </div>
+  </div>
+
+  <div class="discussion-compose" *ngIf="authService.isLoggedIn()">
+    <textarea
+      [(ngModel)]="draft"
+      rows="4"
+      maxlength="2000"
+      placeholder="Écrire un message à la gang..."
+    ></textarea>
+
+    <div class="discussion-compose-footer">
+      <span class="discussion-compose-hint">
+        {{ draft.trim().length }}/2000
+      </span>
+
+      <button
+        type="button"
+        class="discussion-submit"
+        (click)="submit()"
+        [disabled]="sending || !draft.trim()"
+      >
+        {{ sending ? 'Envoi...' : 'Envoyer' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="discussion-login-hint" *ngIf="!authService.isLoggedIn()">
+    Connectez-vous pour participer à la discussion.
+  </div>
+
+  <div class="discussion-state" *ngIf="loading">
+    Chargement...
+  </div>
+
+  <div class="discussion-state discussion-state--error" *ngIf="error && !loading">
+    {{ error }}
+  </div>
+
+  <div class="discussion-empty" *ngIf="!loading && !error && posts.length === 0">
+    {{ emptyMessage }}
+  </div>
+
+  <div class="discussion-list" *ngIf="!loading && !error && posts.length > 0">
+    <article
+      class="discussion-post"
+      *ngFor="let post of posts; trackBy: trackByPostId"
+      [class.discussion-post--mine]="isCurrentUserPost(post)"
+    >
+      <div class="discussion-post-header">
+        <div class="discussion-author-block">
+          <strong>{{ post.authorDisplayName }}</strong>
+          <span class="discussion-you" *ngIf="isCurrentUserPost(post)">vous</span>
+        </div>
+
+        <time>{{ formatPostDate(post.createdAt) }}</time>
+      </div>
+
+      <h3 *ngIf="post.title" class="discussion-post-title">
+        {{ post.title }}
+      </h3>
+
+      <p class="discussion-post-content">{{ post.content }}</p>
+
+      <div class="discussion-post-meta" *ngIf="post.edited">
+        Modifié
+      </div>
+    </article>
+  </div>
+</section>

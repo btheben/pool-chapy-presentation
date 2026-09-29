@@ -1,0 +1,331 @@
+<div class="page">
+  <div *ngIf="loading" class="card loading-card">
+    Chargement...
+  </div>
+
+  <div *ngIf="error && !loading" class="card error-card">
+    {{ error }}
+  </div>
+
+  <ng-container *ngIf="!loading && player">
+    <section class="hero" [style.background]="getHeroStyle(player.teamCode)">
+      <div class="hero-overlay"></div>
+
+      <img
+        *ngIf="getTeamLogoUrl(player.teamCode)"
+        class="hero-team-logo"
+        [src]="getTeamLogoUrl(player.teamCode)!"
+        [alt]="player.teamCode || ''"
+      />
+
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <button type="button" class="back-link" (click)="goBack()">← Retour</button>
+
+          <div class="hero-pills">
+            <span class="pill" *ngIf="player.teamCode">{{ player.teamCode }}</span>
+            <span class="pill">{{ player.positionCode }}</span>
+            <span class="pill" *ngIf="player.shootsCatches">{{ player.shootsCatches }}</span>
+          </div>
+
+          <h1>
+            <span class="jersey-number" *ngIf="player.sweaterNumber">#{{ player.sweaterNumber }}</span>
+            {{ player.fullName }}
+          </h1>
+
+          <div class="hero-bio-line">
+            <span *ngIf="player.birthDate">
+              Né le {{ player.birthDate }}<ng-container *ngIf="getAge() !== null"> ({{ getAge() }} ans)</ng-container>
+            </span>
+            <span *ngIf="formatBirthPlace() !== '—'">{{ formatBirthPlace() }}</span>
+            <span *ngIf="player.heightInInches">Taille {{ formatHeight(player.heightInInches) }}</span>
+            <span *ngIf="player.weightInPounds">Poids {{ player.weightInPounds }} lb</span>
+          </div>
+
+          <div class="owner-line" *ngIf="getPoolOwnerLabel()">
+            <span class="owner-label">Dans le pool de</span>
+            <strong>{{ getPoolOwnerLabel() }}</strong>
+          </div>
+
+          <div class="trend-line" *ngIf="player.trend">
+            <span class="trend-pill" [ngClass]="getTrendClass()">
+              <span class="trend-icon">{{ getTrendIcon() }}</span>
+              {{ player.trend.label }}
+            </span>
+            <span class="trend-detail">{{ player.trend.detail }}</span>
+          </div>
+
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <strong>{{ player.gamesPlayed }}</strong>
+              <span>Matchs</span>
+            </div>
+            <div class="hero-stat">
+              <strong>{{ player.goals }}</strong>
+              <span>Buts</span>
+            </div>
+            <div class="hero-stat">
+              <strong>{{ player.assists }}</strong>
+              <span>Passes</span>
+            </div>
+            <div class="hero-stat">
+              <strong>{{ player.points }}</strong>
+              <span>Points</span>
+            </div>
+            <div class="hero-stat accent">
+              <strong>{{ player.fantasyPoints }}</strong>
+              <span>Pts PoolChapy</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-media">
+          <div class="headshot-shell">
+            <img
+              *ngIf="headshotUrl && headshotVisible"
+              class="player-headshot"
+              [src]="headshotUrl"
+              [alt]="player.fullName"
+              (error)="onHeadshotError()"
+            />
+
+            <div *ngIf="!headshotUrl || !headshotVisible" class="headshot-fallback">
+              {{ getPlayerInitials() }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card summary-card">
+      <div class="mini-stat-grid">
+        <div class="mini-stat">
+          <span>Points / match</span>
+          <strong>{{ pointsPerGame() | number:'1.2-2' }}</strong>
+        </div>
+
+        <div class="mini-stat">
+          <span>Pool / match</span>
+          <strong>{{ poolPointsPerGame() | number:'1.2-2' }}</strong>
+        </div>
+
+        <div class="mini-stat">
+          <span>Meilleur match pool</span>
+          <strong>{{ bestPoolGame() }}</strong>
+        </div>
+
+        <div class="mini-stat">
+          <span>Dernier match</span>
+          <strong>{{ latestGamePoints() }} pts</strong>
+          <small>{{ latestGamePoolPoints() }} pool</small>
+        </div>
+
+        <div class="mini-stat">
+          <span>Buts</span>
+          <strong>{{ player.goals }}</strong>
+        </div>
+
+        <div class="mini-stat">
+          <span>Passes</span>
+          <strong>{{ player.assists }}</strong>
+        </div>
+
+        <div class="mini-stat">
+          <span>Points</span>
+          <strong>{{ player.points }}</strong>
+        </div>
+
+        <div class="mini-stat mini-stat--accent">
+          <span>PoolChapy</span>
+          <strong>{{ player.fantasyPoints }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="card tab-card">
+      <div class="tabs-nav">
+        <button
+          type="button"
+          class="tab-button"
+          [class.active]="activeTab === 'season-history'"
+          (click)="setActiveTab('season-history')"
+        >
+          Historique saisons
+        </button>
+
+        <button
+          type="button"
+          class="tab-button"
+          [class.active]="activeTab === 'playoff-history'"
+          (click)="setActiveTab('playoff-history')"
+        >
+          Historique séries
+        </button>
+
+        <button
+          type="button"
+          class="tab-button"
+          [class.active]="activeTab === 'game-log'"
+          (click)="setActiveTab('game-log')"
+        >
+          Game log
+        </button>
+      </div>
+
+      <div class="tab-panel" *ngIf="activeTab === 'season-history'">
+        <div class="section-header">
+          <h2>Historique saisons</h2>
+        </div>
+
+        <div class="history-empty" *ngIf="!hasSeasonHistory">
+          Historique de saison non disponible pour ce joueur pour l’instant.
+        </div>
+
+        <div class="table-wrapper" *ngIf="hasSeasonHistory">
+          <table>
+            <thead>
+            <tr>
+              <th>Saison</th>
+              <th>Équipe</th>
+              <th>M</th>
+              <th>B</th>
+              <th>A</th>
+              <th>Pts</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr *ngFor="let season of regularSeasonHistory; trackBy: trackSeason">
+              <td>{{ season.seasonLabel }}</td>
+              <td class="team-logo-cell">
+                <ng-container *ngIf="getTeamLogoUrl(season.teamCode) as logo; else regularSeasonTeamFallback">
+                  <img
+                    class="team-logo"
+                    [src]="logo"
+                    [alt]="season.teamCode || 'Équipe'"
+                    [title]="season.teamCode || 'Équipe'" />
+                </ng-container>
+
+                <ng-template #regularSeasonTeamFallback>
+                  <span class="team-text-fallback">{{ season.teamCode || '—' }}</span>
+                </ng-template>
+              </td>
+              <td>{{ season.gamesPlayed }}</td>
+              <td>{{ season.goals }}</td>
+              <td>{{ season.assists }}</td>
+              <td class="points">{{ season.points }}</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-panel" *ngIf="activeTab === 'playoff-history'">
+        <div class="section-header">
+          <h2>Historique séries</h2>
+        </div>
+
+        <div class="history-empty" *ngIf="!hasPlayoffHistory">
+          Historique des séries non disponible pour ce joueur pour l’instant.
+        </div>
+
+        <div class="table-wrapper" *ngIf="hasPlayoffHistory">
+          <table>
+            <thead>
+            <tr>
+              <th>Saison</th>
+              <th>Équipe</th>
+              <th>M</th>
+              <th>B</th>
+              <th>A</th>
+              <th>Pts</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr *ngFor="let season of playoffHistory; trackBy: trackSeason">
+              <td>{{ season.seasonLabel }}</td>
+              <td class="team-logo-cell">
+                <ng-container *ngIf="getTeamLogoUrl(season.teamCode) as logo; else teamFallback">
+                  <img
+                    class="team-logo"
+                    [src]="logo"
+                    [alt]="season.teamCode || 'Équipe'"
+                    [title]="season.teamCode || 'Équipe'"
+                    (error)="onHistoricalLogoError($event)" />
+                </ng-container>
+
+                <ng-template #teamFallback>
+                  <span class="team-text-fallback">{{ season.teamCode || '—' }}</span>
+                </ng-template>
+              </td>
+              <td>{{ season.gamesPlayed }}</td>
+              <td>{{ season.goals }}</td>
+              <td>{{ season.assists }}</td>
+              <td class="points">{{ season.points }}</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-panel" *ngIf="activeTab === 'game-log'">
+        <div class="section-header">
+          <h2>Game log</h2>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+            <tr>
+              <th>Date</th>
+              <th>Matchup</th>
+              <th>État</th>
+              <th>B</th>
+              <th>A</th>
+              <th>Pts</th>
+              <th>Pool</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr *ngFor="let game of player.games">
+              <td>{{ game.gameDate | date:'yyyy-MM-dd' }}</td>
+              <td class="matchup-cell">
+                <ng-container *ngIf="game.teamCode || game.opponentCode; else emptyMatchup">
+                  <div
+                    class="matchup-logos"
+                    [attr.aria-label]="formatMatchup(game.teamCode, game.opponentCode)">
+
+                    <ng-container *ngIf="getTeamLogoUrl(game.teamCode) as teamLogo">
+                      <img
+                        class="matchup-logo"
+                        [src]="teamLogo"
+                        [alt]="game.teamCode || 'Équipe'"
+                        [title]="game.teamCode || 'Équipe'" />
+                    </ng-container>
+
+                    <span class="matchup-vs">vs</span>
+
+                    <ng-container *ngIf="getTeamLogoUrl(game.opponentCode) as opponentLogo">
+                      <img
+                        class="matchup-logo"
+                        [src]="opponentLogo"
+                        [alt]="game.opponentCode || 'Adversaire'"
+                        [title]="game.opponentCode || 'Adversaire'" />
+                    </ng-container>
+                  </div>
+                </ng-container>
+
+                <ng-template #emptyMatchup>—</ng-template>
+              </td>
+              <td>{{ game.gameState || '—' }}</td>
+              <td>{{ game.goals }}</td>
+              <td>{{ game.assists }}</td>
+              <td>{{ (game.goals || 0) + (game.assists || 0) }}</td>
+              <td class="points">{{ game.fantasyPoints }}</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </ng-container>
+</div>

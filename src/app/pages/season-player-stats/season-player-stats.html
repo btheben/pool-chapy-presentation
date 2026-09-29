@@ -1,0 +1,232 @@
+<div class="season-stats-page">
+  <section class="season-stats-hero">
+    <div class="hero-copy">
+      <div class="hero-eyebrow">Saison en cours</div>
+      <h1>{{ pageTitle }}</h1>
+      <p>{{ pageSubtitle }}</p>
+    </div>
+
+    <div class="hero-feature" *ngIf="topPlayer">
+      <div class="feature-label">Meneur actuel</div>
+
+      <div class="feature-player">
+        <div class="team-logo-chip" *ngIf="topPlayer.nhlTeamLogoUrl">
+          <img [src]="topPlayer.nhlTeamLogoUrl" [alt]="topPlayer.nhlTeamCode || topPlayer.playerName" />
+        </div>
+
+        <div>
+          <strong>{{ topPlayer.playerName }}</strong>
+          <span>
+            {{ topPlayer.nhlTeamCode || '—' }}
+            ·
+            {{ topPlayer.positionCode || '—' }}
+          </span>
+        </div>
+      </div>
+
+      <div class="feature-points">
+        {{ formatPoolPoints(topPlayer.poolPoints) }}
+        <span>pts pool</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="season-stats-content">
+    <div class="state-card" *ngIf="loading">
+      Chargement des stats...
+    </div>
+
+    <div class="state-card error" *ngIf="error && !loading">
+      {{ error }}
+    </div>
+
+    <ng-container *ngIf="!loading && !error">
+      <section class="stats-summary-grid">
+        <div class="summary-card">
+          <span>Joueurs affichés</span>
+          <strong>{{ totalPlayers }}</strong>
+        </div>
+
+        <div class="summary-card">
+          <span>Déjà pris</span>
+          <strong>{{ draftedCount }}</strong>
+        </div>
+
+        <div class="summary-card highlight">
+          <span>Agents libres</span>
+          <strong>{{ freeAgentCount }}</strong>
+        </div>
+      </section>
+
+      <section class="stats-panel">
+        <div class="stats-panel-header">
+          <div>
+            <div class="panel-eyebrow">Classement</div>
+            <h2>Joueurs de la saison</h2>
+          </div>
+
+          <div class="view-toggle">
+            <button
+              type="button"
+              [class.active]="selectedViewMode === 'DRAFTED'"
+              (click)="selectViewMode('DRAFTED')"
+            >
+              Repêchés
+            </button>
+
+            <button
+              type="button"
+              [class.active]="selectedViewMode === 'ALL_PLAYERS'"
+              (click)="selectViewMode('ALL_PLAYERS')"
+            >
+              Tous
+            </button>
+
+            <button
+              type="button"
+              [class.active]="selectedViewMode === 'FREE_AGENTS'"
+              (click)="selectViewMode('FREE_AGENTS')"
+            >
+              Agents libres
+            </button>
+          </div>
+        </div>
+
+        <div class="position-tabs">
+          <button
+            type="button"
+            *ngFor="let tab of positionTabs"
+            [class.active]="selectedPosition === tab.value"
+            (click)="selectPosition(tab.value)"
+          >
+            <span class="tab-label">{{ tab.label }}</span>
+            <span class="tab-short-label">{{ tab.shortLabel }}</span>
+          </button>
+        </div>
+
+        <div class="table-shell" *ngIf="visiblePlayers.length > 0">
+          <table class="stats-table">
+            <thead>
+            <tr>
+              <th class="rank-col">#</th>
+              <th>Joueur</th>
+              <th>Pos</th>
+              <th class="number-col">PJ</th>
+              <th class="number-col">B</th>
+              <th class="number-col">A</th>
+              <th class="number-col">V</th>
+              <th class="number-col">BL</th>
+              <th class="number-col points-col">Pts</th>
+              <th>Statut</th>
+              <th>Disponibilité</th>
+            </tr>
+            </thead>
+
+            <tbody>
+            <tr
+              *ngFor="let player of visiblePlayers; let index = index; trackBy: trackByPlayerId"
+              [class.current-user-player-row]="isCurrentUserPlayer(player)"
+            >
+              <td class="rank-col">
+                <span class="rank-pill">{{ index + 1 }}</span>
+              </td>
+
+              <td>
+                <div class="player-cell">
+                  <button
+                    type="button"
+                    class="team-logo-mini team-logo-mini--clickable"
+                    *ngIf="player.nhlTeamLogoUrl && player.nhlTeamCode"
+                    [attr.title]="'Voir les joueurs de ' + player.nhlTeamCode"
+                    (click)="goToNhlTeam(player.nhlTeamCode, $event)"
+                  >
+                    <img
+                      [src]="player.nhlTeamLogoUrl"
+                      [alt]="player.nhlTeamCode || player.playerName"
+                      (error)="onTeamLogoError($event)"
+                    />
+                  </button>
+
+                  <div class="player-main">
+                    <a
+                      class="player-link"
+                      [routerLink]="['/players', player.playerId]"
+                    >
+                      {{ player.playerName }}
+                    </a>
+
+                    <span>
+                        {{ player.nhlTeamCode || '—' }}
+                      ·
+                      {{ getPositionLabel(player) }}
+                      </span>
+                  </div>
+                </div>
+              </td>
+
+              <td>
+                <span class="position-pill">{{ player.positionCode || '—' }}</span>
+              </td>
+
+              <td class="number-col">{{ formatNumber(player.gamesPlayed) }}</td>
+
+              <td class="number-col">
+                {{ showSkaterStats(player) ? formatNumber(player.goals) : '—' }}
+              </td>
+
+              <td class="number-col">
+                {{ showSkaterStats(player) ? formatNumber(player.assists) : '—' }}
+              </td>
+
+              <td class="number-col">
+                {{ showGoalieStats(player) || showTeamStats(player) ? formatNumber(player.goalieWins) : '—' }}
+              </td>
+
+              <td class="number-col">
+                {{ showGoalieStats(player) ? formatNumber(player.shutouts) : '—' }}
+              </td>
+
+              <td class="number-col points-col">
+                {{ formatPoolPoints(player.poolPoints) }}
+              </td>
+
+              <td>
+                  <span class="status-pill" [ngClass]="getStatusClass(player)">
+                    {{ getStatusLabel(player) }}
+                  </span>
+              </td>
+
+              <td>
+                <div class="draft-cell">
+                  <button
+                    type="button"
+                    class="draft-pill drafted drafted-clickable"
+                    [class.current-user-draft-pill]="isCurrentUserPlayer(player)"
+                    *ngIf="player.drafted"
+                    [disabled]="!player.draftedByUsername"
+                    [attr.title]="getDraftTitle(player)"
+                    (click)="goToMember(player.draftedByUsername)"
+                  >
+                    {{ getDraftLabel(player) }}
+                  </button>
+
+                  <span class="draft-pill free-agent" *ngIf="!player.drafted">
+                    Libre
+                  </span>
+                </div>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="empty-state" *ngIf="players.length === 0">
+          <strong>Aucun joueur trouvé.</strong>
+          <span>
+            Essaie une autre position ou change le filtre de disponibilité.
+          </span>
+        </div>
+      </section>
+    </ng-container>
+  </section>
+</div>

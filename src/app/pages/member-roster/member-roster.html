@@ -1,0 +1,583 @@
+<div class="page">
+  <div class="hero" [style.background]="heroBackground">
+    <a routerLink="/standings" class="back-link">← Retour au classement</a>
+
+    <div
+      class="hero-main"
+      *ngIf="!loading && rosterData"
+      [class.hero-main--with-logo]="rosterData.logoUrl"
+    >
+      <div class="hero-logo-watermark" *ngIf="rosterData.logoUrl">
+        <img [src]="rosterData.logoUrl" [alt]="rosterData.teamName" />
+      </div>
+
+      <div class="hero-copy">
+        <div class="eyebrow">Roster séries · {{ seasonLabel }}</div>
+
+        <h1>{{ rosterData.displayName }}</h1>
+
+        <p class="hero-subtitle">
+          {{ rosterData.teamName }}
+          <span *ngIf="rosterData.finalRank">• Rang #{{ rosterData.finalRank }}</span>
+          <span *ngIf="rosterData.recentStatsDate">
+            • Variations du {{ rosterData.recentStatsDate }}
+          </span>
+        </p>
+
+        <div class="hero-quick-stats">
+          <div class="hero-chip hero-chip--strong" *ngIf="rosterData.totalPoints !== null">
+            <span>Total</span>
+            <strong>{{ rosterData.totalPoints }} pts</strong>
+          </div>
+
+          <div class="hero-chip" *ngIf="rosterData.finalRank">
+            <span>Rang</span>
+            <strong>#{{ rosterData.finalRank }}</strong>
+          </div>
+
+          <div class="hero-chip">
+            <span>Actifs</span>
+            <strong>{{ rosterCountLabel }}</strong>
+          </div>
+
+          <div class="hero-chip">
+            <span>Ce soir</span>
+            <strong>{{ tonightPlayersCount }} joueur{{ tonightPlayersCount > 1 ? 's' : '' }}</strong>
+          </div>
+        </div>
+
+        <div class="hero-spotlights" *ngIf="heroHighlights.length > 0">
+          <button
+            type="button"
+            class="hero-spotlight-card"
+            *ngFor="let item of heroHighlights"
+            [class.hero-spotlight-card--clickable]="item.playerId"
+            (click)="item.playerId ? goToPlayer(item.playerId) : null"
+          >
+            <div class="hero-spotlight-icon">{{ item.icon }}</div>
+
+            <div class="hero-spotlight-body">
+              <span class="hero-spotlight-title">{{ item.title }}</span>
+
+              <div class="hero-spotlight-value-row">
+                <img
+                  *ngIf="item.teamCode && getTeamLogoUrl(item.teamCode)"
+                  [src]="getTeamLogoUrl(item.teamCode)"
+                  [alt]="item.teamCode"
+                  class="hero-spotlight-logo"
+                  (error)="onTeamLogoError($event)"
+                />
+                <strong>{{ item.value }}</strong>
+              </div>
+
+              <span class="hero-spotlight-subtitle">{{ item.subtitle }}</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div class="hero-logo-stage" *ngIf="rosterData.logoUrl">
+        <img
+          [src]="rosterData.logoUrl"
+          [alt]="rosterData.teamName"
+          class="hero-team-logo"
+        />
+      </div>
+    </div>
+  </div>
+
+  <div class="content-shell">
+    <aside class="sidebar card">
+      <div class="sidebar-header">
+        <div>
+          <h2>Équipes</h2>
+          <p>Classement</p>
+        </div>
+      </div>
+
+      <div class="sidebar-loading" *ngIf="sidebarLoading">
+        Chargement...
+      </div>
+
+      <div class="team-nav-list" *ngIf="!sidebarLoading">
+        <button
+          type="button"
+          class="team-nav-item"
+          *ngFor="let member of standingsMembers"
+          [class.active]="isActiveMember(member)"
+          (click)="goToMember(member)"
+        >
+          <div
+            class="team-nav-rank"
+            [class.team-nav-rank--up]="getRankChangeDirection(member) === 'up'"
+            [class.team-nav-rank--down]="getRankChangeDirection(member) === 'down'"
+            [title]="getRankChangeTooltip(member)"
+          >
+            <span class="team-nav-rank-number">#{{ member.rank }}</span>
+
+            <span
+              class="team-nav-rank-arrow"
+              *ngIf="hasRankChange(member)"
+            >
+              {{ getRankChangeArrow(member) }}
+            </span>
+          </div>
+
+          <div class="team-nav-logo-slot">
+            <img
+              *ngIf="member.logoUrl"
+              [src]="member.logoUrl"
+              [alt]="member.teamName || member.displayName"
+              class="team-nav-logo"
+            />
+            <span *ngIf="!member.logoUrl">{{ member.rank }}</span>
+          </div>
+
+          <div class="team-nav-main">
+            <div class="team-nav-name">{{ memberLabel(member) }}</div>
+            <div class="team-nav-subtitle">{{ member.displayName }}</div>
+          </div>
+
+          <div class="team-nav-stats">
+            <div class="team-nav-points">{{ member.totalPoints }}</div>
+
+            <div
+              class="team-yesterday-points"
+              *ngIf="hasYesterdayPoints(member)"
+              [title]="getStandingTooltip(member)"
+            >
+              {{ formatYesterdayPoints(member) }}
+            </div>
+          </div>
+        </button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <div class="card loading-card" *ngIf="loading">
+        Chargement...
+      </div>
+
+      <div class="card error-card" *ngIf="error && !loading">
+        {{ error }}
+      </div>
+
+      <ng-container *ngIf="!loading && rosterData">
+        <div class="summary-strip card">
+          <div class="summary-item">
+            <span>Joueurs actifs</span>
+            <strong>{{ rosterCountLabel }}</strong>
+          </div>
+
+          <div class="summary-item">
+            <span>Matchs</span>
+            <strong>{{ grandTotals.gamesPlayed }}</strong>
+          </div>
+
+          <div class="summary-item">
+            <span>Buts</span>
+            <strong>{{ grandTotals.goals }}</strong>
+          </div>
+
+          <div class="summary-item">
+            <span>Passes</span>
+            <strong>{{ grandTotals.assists }}</strong>
+          </div>
+
+          <div class="summary-item highlight">
+            <span>Pts Pool</span>
+            <strong>{{ grandTotals.poolPoints }}</strong>
+          </div>
+        </div>
+
+        <div class="member-content-grid">
+          <div class="member-main-column">
+            <div class="view-tabs card">
+              <button
+                type="button"
+                class="view-tab"
+                [class.active]="viewMode === 'modern'"
+                (click)="setViewMode('modern')"
+              >
+                Vue moderne
+              </button>
+
+              <button
+                type="button"
+                class="view-tab"
+                [class.active]="viewMode === 'simple'"
+                (click)="setViewMode('simple')"
+              >
+                Vue simplifiée
+              </button>
+            </div>
+
+            <div class="roster-grid" *ngIf="viewMode === 'modern'">
+              <section class="section-card card" *ngFor="let section of sections">
+                <div class="section-header">
+                  <div class="section-title-row">
+                    <span class="section-pill">{{ section.shortTitle }}</span>
+
+                    <div>
+                      <h2>{{ section.title }}</h2>
+                      <p>
+                        {{ section.subtitle }}
+                        <span>• {{ section.countedCount }}/{{ section.players.length }} comptent</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="section-points">
+                    <strong>{{ getSectionPoints(section) }}</strong>
+                    <span>pts</span>
+                  </div>
+                </div>
+
+                <div class="table-wrapper">
+                  <table>
+                    <thead>
+                    <tr>
+                      <th
+                        *ngFor="let column of section.columns"
+                        [class.sortable]="column.sortable"
+                        [class.compact-col]="column.compact"
+                        (click)="column.sortable ? toggleSort(section.key, column.key) : null"
+                      >
+                        {{ column.label }}{{ column.sortable ? getSortIndicator(section.key, column.key) : '' }}
+                      </th>
+                    </tr>
+                    </thead>
+
+                    <tbody>
+                    <tr
+                      *ngFor="let player of section.players"
+                      [class.not-counted]="!player.countsForTotals"
+                    >
+                      <td
+                        *ngFor="let column of section.columns"
+                        [class.points]="column.key === 'poolPoints'"
+                        [class.compact-col]="column.compact"
+                      >
+                        <ng-container [ngSwitch]="column.key">
+                          <ng-container *ngSwitchCase="'playerName'">
+                            <div class="player-cell">
+                              <button
+                                type="button"
+                                class="team-logo-inline team-logo-inline--clickable"
+                                *ngIf="player.nhlTeamCode"
+                                [attr.title]="'Voir les joueurs de ' + player.nhlTeamCode"
+                                (click)="goToNhlTeam(player.nhlTeamCode, $event)"
+                              >
+                                <img
+                                  [src]="getTeamLogoUrl(player.nhlTeamCode)"
+                                  [alt]="player.nhlTeamCode"
+                                  class="team-logo team-logo--inline"
+                                  (error)="onTeamLogoError($event)"
+                                />
+                              </button>
+
+                              <button
+                                type="button"
+                                class="player-link"
+                                [disabled]="!player.playerId"
+                                (click)="goToPlayer(player.playerId)"
+                              >
+                                {{ player.playerName }}
+                              </button>
+
+                              <span
+                                class="player-badge player-badge--game-tonight"
+                                *ngIf="isPlayerInActionToday(player)"
+                                title="En action aujourd’hui"
+                                aria-label="En action aujourd’hui"
+                              >
+                                  🏒
+                                </span>
+
+                              <span
+                                class="player-badge player-badge--excluded"
+                                *ngIf="!player.countsForTotals"
+                                title="Ne compte pas"
+                                aria-label="Ne compte pas"
+                              >
+                                  <span class="player-badge-icon">✕</span>
+                                </span>
+                            </div>
+                          </ng-container>
+
+                          <ng-container *ngSwitchDefault>
+                            <div
+                              class="stat-with-delta"
+                              [class.stat-with-delta--has-badge]="hasVisibleRecentDelta(player, column.key)"
+                            >
+                                <span
+                                  *ngIf="hasVisibleRecentDelta(player, column.key)"
+                                  class="delta-spacer"
+                                  aria-hidden="true"
+                                ></span>
+
+                              <span class="stat-main">{{ getStatValue(player, column.key) }}</span>
+
+                              <span
+                                *ngIf="hasVisibleRecentDelta(player, column.key)"
+                                [class]="getDeltaBadgeClass(getRecentDelta(player, column.key))"
+                                [attr.title]="'Variation du ' + rosterData?.recentStatsDate"
+                              >
+                                  {{ formatDelta(getRecentDelta(player, column.key)) }}
+                                </span>
+                            </div>
+                          </ng-container>
+                        </ng-container>
+                      </td>
+                    </tr>
+                    </tbody>
+
+                    <tfoot>
+                    <tr class="totals-row">
+                      <td
+                        *ngFor="let column of section.columns"
+                        [class.points]="column.key === 'poolPoints'"
+                        [class.compact-col]="column.compact"
+                      >
+                        <ng-container [ngSwitch]="column.key">
+                          <ng-container *ngSwitchCase="'slotCode'">
+                            Total
+                          </ng-container>
+
+                          <ng-container *ngSwitchCase="'playerName'"></ng-container>
+                          <ng-container *ngSwitchCase="'positionCode'"></ng-container>
+                          <ng-container *ngSwitchCase="'nhlTeamCode'"></ng-container>
+
+                          <ng-container *ngSwitchDefault>
+                            {{ getSectionTotal(section, column.key) }}
+                          </ng-container>
+                        </ng-container>
+                      </td>
+                    </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </section>
+            </div>
+
+            <section class="simple-roster-card card" *ngIf="viewMode === 'simple'">
+              <div class="simple-roster-header">
+                <div>
+                  <h2>Alignement simplifié</h2>
+                  <p>Vue classique avec les statistiques essentielles.</p>
+                </div>
+
+                <strong>{{ grandTotals.poolPoints }} pts</strong>
+              </div>
+
+              <div class="simple-table-wrapper">
+                <table class="simple-roster-table">
+                  <thead>
+                  <tr>
+                    <th class="simple-col-slot">Slot</th>
+                    <th>Joueur</th>
+                    <th class="simple-col-small">Pos</th>
+                    <th class="simple-col-small">PJ</th>
+                    <th class="simple-col-small">B</th>
+                    <th class="simple-col-small">A</th>
+                    <th class="simple-col-small">V</th>
+                    <th class="simple-col-small">BL</th>
+                    <th class="simple-col-small">Pts</th>
+                    <th class="simple-col-yesterday">Hier</th>
+                  </tr>
+                  </thead>
+
+                  <tbody>
+                  <tr
+                    *ngFor="let player of simpleRosterRows"
+                    [class.not-counted]="!player.countsForTotals"
+                  >
+                    <td>{{ player.slotCode }}</td>
+
+                    <td>
+                      <div class="simple-player-cell">
+                        <button
+                          type="button"
+                          class="simple-team-logo-button"
+                          *ngIf="player.nhlTeamCode && getTeamLogoUrl(player.nhlTeamCode)"
+                          [attr.title]="'Voir les joueurs de ' + player.nhlTeamCode"
+                          (click)="goToNhlTeam(player.nhlTeamCode, $event)"
+                        >
+                          <img
+                            [src]="getTeamLogoUrl(player.nhlTeamCode)"
+                            [alt]="player.nhlTeamCode"
+                            class="simple-team-logo"
+                            (error)="onTeamLogoError($event)"
+                          />
+                        </button>
+
+                        <button
+                          type="button"
+                          class="player-link"
+                          [disabled]="!player.playerId"
+                          (click)="goToPlayer(player.playerId)"
+                        >
+                          {{ player.playerName }}
+                        </button>
+
+                        <span
+                          class="player-badge player-badge--game-tonight"
+                          *ngIf="isPlayerInActionToday(player)"
+                          title="En action aujourd’hui"
+                        >
+                            🏒
+                          </span>
+
+                        <span
+                          class="player-badge player-badge--excluded"
+                          *ngIf="!player.countsForTotals"
+                          title="Ne compte pas"
+                        >
+                            <span class="player-badge-icon">✕</span>
+                          </span>
+                      </div>
+                    </td>
+
+                    <td>{{ player.positionCode }}</td>
+                    <td>{{ player.gamesPlayed }}</td>
+                    <td>{{ player.goals }}</td>
+                    <td>{{ player.assists }}</td>
+                    <td>{{ player.goalieWins || player.teamWins || '-' }}</td>
+                    <td>{{ player.shutouts || '-' }}</td>
+                    <td class="points">{{ player.poolPoints }}</td>
+
+                    <td>
+                        <span
+                          class="simple-yesterday"
+                          *ngIf="getSimpleYesterdayPoints(player) > 0"
+                        >
+                          {{ formatSimpleYesterdayPoints(player) }}
+                        </span>
+                    </td>
+                  </tr>
+                  </tbody>
+
+                  <tfoot>
+                  <tr>
+                    <td colspan="3">Total</td>
+                    <td>{{ grandTotals.gamesPlayed }}</td>
+                    <td>{{ grandTotals.goals }}</td>
+                    <td>{{ grandTotals.assists }}</td>
+                    <td>{{ grandTotals.goalieWins + grandTotals.teamWins }}</td>
+                    <td>{{ grandTotals.shutouts }}</td>
+                    <td class="points">{{ grandTotals.poolPoints }}</td>
+                    <td></td>
+                  </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </section>
+
+
+            <section class="mobile-roster-card card">
+              <div class="mobile-roster-header">
+                <div>
+                  <h2>Joueurs</h2>
+                  <p>Version simplifiée mobile</p>
+                </div>
+
+                <strong>{{ grandTotals.poolPoints }} pts</strong>
+              </div>
+
+              <div class="mobile-roster-list">
+                <div
+                  class="mobile-roster-item"
+                  *ngFor="let player of mobileRosterRows"
+                  [class.not-counted]="!player.countsForTotals"
+                >
+                  <div class="mobile-roster-main">
+                    <button
+                      type="button"
+                      class="mobile-team-logo-button"
+                      *ngIf="player.nhlTeamCode && getTeamLogoUrl(player.nhlTeamCode)"
+                      [attr.title]="'Voir les joueurs de ' + player.nhlTeamCode"
+                      (click)="goToNhlTeam(player.nhlTeamCode, $event)"
+                    >
+                      <img
+                        [src]="getTeamLogoUrl(player.nhlTeamCode)"
+                        [alt]="player.nhlTeamCode"
+                        class="mobile-team-logo"
+                        (error)="onTeamLogoError($event)"
+                      />
+                    </button>
+
+                    <div class="mobile-roster-text">
+                      <button
+                        type="button"
+                        class="mobile-player-link"
+                        [disabled]="!player.playerId"
+                        (click)="goToPlayer(player.playerId)"
+                      >
+                        {{ player.playerName }}
+                      </button>
+
+                      <div class="mobile-player-subline">
+                        <span>{{ player.positionCode }}</span>
+                        <span *ngIf="player.nhlTeamCode">• {{ player.nhlTeamCode }}</span>
+                        <span *ngIf="!player.countsForTotals" class="mobile-player-excluded">• Ne compte pas</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="mobile-roster-points">
+                    <strong>{{ player.poolPoints }}</strong>
+                    <span>pts</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <div
+              class="card empty-card"
+              *ngIf="!error && rosterData && (!rosterData.roster || rosterData.roster.length === 0)"
+            >
+              Aucun joueur trouvé.
+            </div>
+          </div>
+
+          <aside class="member-side-column">
+            <div class="side-panel-card">
+              <div class="side-panel-tabs">
+                <button
+                  type="button"
+                  class="side-panel-tab"
+                  [class.active]="sideTab === 'discussion'"
+                  (click)="setSideTab('discussion')"
+                >
+                  Discussion
+                </button>
+
+                <button
+                  type="button"
+                  class="side-panel-tab"
+                  [class.active]="sideTab === 'infos'"
+                  (click)="setSideTab('infos')"
+                >
+                  Infos
+                </button>
+              </div>
+
+              <div class="side-panel-body">
+                <app-discussion-panel
+                  *ngIf="sideTab === 'discussion'"
+                  [seasonLabel]="seasonLabel"
+                  [maxPosts]="10"
+                  [showViewAllLink]="true"
+                />
+
+                <div *ngIf="sideTab === 'infos'" class="side-panel-placeholder">
+                  Plus tard : activité, infos d’équipe, résumé, etc.
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </ng-container>
+    </main>
+  </div>
+</div>

@@ -1,0 +1,50 @@
+<div class="login-page">
+  <section class="login-hero">
+    <div class="login-hero-inner">
+      <div class="login-eyebrow">Connexion</div>
+      <h1>Bienvenue dans PoolChapy</h1>
+      <p>Connectez-vous pour accéder à votre équipe et à vos préférences.</p>
+    </div>
+  </section>
+
+  <section class="login-content">
+    <div class="login-card">
+      <div class="login-card-header">
+        <h2>Se connecter</h2>
+        <p>Utilisez votre nom d’utilisateur ou votre courriel.</p>
+      </div>
+
+      <form class="login-form" (ngSubmit)="submit()">
+        <label class="form-field">
+          <span>Identifiant</span>
+          <input
+            type="text"
+            name="identifier"
+            [(ngModel)]="identifier"
+            autocomplete="username"
+            placeholder="Nom d’utilisateur ou courriel"
+          />
+        </label>
+
+        <label class="form-field">
+          <span>Mot de passe</span>
+          <input
+            type="password"
+            name="password"
+            [(ngModel)]="password"
+            autocomplete="current-password"
+            placeholder="Votre mot de passe"
+          />
+        </label>
+
+        <div class="login-error" *ngIf="error">
+          {{ error }}
+        </div>
+
+        <button type="submit" class="login-submit" [disabled]="loading">
+          {{ loading ? 'Connexion...' : 'Se connecter' }}
+        </button>
+      </form>
+    </div>
+  </section>
+</div>

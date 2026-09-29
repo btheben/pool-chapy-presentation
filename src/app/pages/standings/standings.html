@@ -1,0 +1,188 @@
+<div class="page">
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <div class="hero-eyebrow">Hub PoolChapy</div>
+        <h1>{{ pageTitle }}</h1>
+        <p>{{ pageSubtitle }}</p>
+
+        <div class="hero-pills" *ngIf="selectedSeason">
+          <span class="hero-pill hero-pill--active">
+            {{ selectedSeason.shortLabel }}
+          </span>
+
+          <span class="hero-pill" *ngIf="featuredSeason && selectedSeason.value !== featuredSeason.value">
+            Pool courant · {{ featuredSeason.shortLabel }}
+          </span>
+        </div>
+      </div>
+
+      <div class="hero-feature-card" *ngIf="featuredSeason">
+        <span class="feature-label">Pool actif</span>
+        <strong>{{ featuredSeason.shortLabel }}</strong>
+        <p>{{ featuredSeason.description }}</p>
+
+        <button
+          type="button"
+          class="feature-action"
+          *ngIf="seasonLabel !== featuredSeason.value"
+          (click)="changeSeason(featuredSeason.value)"
+        >
+          Revenir au pool courant
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <div class="content-shell">
+    <aside class="sidebar card">
+      <div class="sidebar-section">
+        <div class="sidebar-heading">
+          <span>Courant</span>
+        </div>
+
+        <button
+          type="button"
+          class="season-nav-item season-nav-item--current"
+          *ngIf="featuredSeason"
+          [class.active]="featuredSeason.value === seasonLabel"
+          (click)="changeSeason(featuredSeason.value)"
+        >
+          <div class="season-nav-main">
+            <div class="season-nav-title">{{ featuredSeason.shortLabel }}</div>
+            <div class="season-nav-subtitle">{{ featuredSeason.description }}</div>
+          </div>
+
+          <span class="season-nav-kind">
+            {{ seasonKindLabel(featuredSeason) }}
+          </span>
+        </button>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-heading">
+          <span>Archives</span>
+        </div>
+
+        <div class="archive-empty" *ngIf="!hasArchiveEntries">
+          Aucune archive pour le moment.
+        </div>
+
+        <div class="season-nav-list" *ngIf="hasArchiveEntries">
+          <button
+            type="button"
+            class="season-nav-item"
+            *ngFor="let season of archiveSeasons"
+            [class.active]="season.value === seasonLabel"
+            (click)="changeSeason(season.value)"
+          >
+            <div class="season-nav-main">
+              <div class="season-nav-title">{{ season.shortLabel }}</div>
+              <div class="season-nav-subtitle">{{ season.yearLabel }}</div>
+            </div>
+
+            <span class="season-nav-kind">
+              {{ seasonKindLabel(season) }}
+            </span>
+          </button>
+        </div>
+
+        <div class="archive-footnote">
+          Plus tard, les saisons importées de Poolexpert pourront apparaître ici.
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <section class="overview-grid">
+        <div class="overview-card card">
+          <span>Vue</span>
+          <strong>{{ standingsTitle }}</strong>
+          <p>{{ selectedSeason?.label }}</p>
+        </div>
+
+        <div class="overview-card card">
+          <span>Entrées</span>
+          <strong>{{ standings.length }}</strong>
+          <p *ngIf="!loading">membres affichés</p>
+          <p *ngIf="loading">chargement en cours</p>
+        </div>
+
+        <div class="overview-card card highlight" *ngIf="!loading && standings.length > 0">
+          <span>Chef de file</span>
+          <strong>{{ leaderDisplayName }}</strong>
+          <p>{{ leaderPoints }} pts</p>
+        </div>
+      </section>
+
+      <section class="standings-card card">
+        <div class="card-header">
+          <div>
+            <div class="card-eyebrow">{{ standingsTitle }}</div>
+            <h2>{{ selectedSeason?.label }}</h2>
+          </div>
+        </div>
+
+        <div *ngIf="loading" class="card-state">
+          Chargement...
+        </div>
+
+        <div *ngIf="error && !loading" class="card-state error">
+          {{ error }}
+        </div>
+
+        <div *ngIf="!loading && !error && standings && standings.length > 0" class="table-wrapper">
+          <table>
+            <thead>
+            <tr>
+              <th>#</th>
+              <th>Nom</th>
+              <th>Équipe</th>
+              <th>Points</th>
+              <th>Diff</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr
+              *ngFor="let row of standings"
+              [class.top-three]="row.rank <= 3"
+              [class.current-user-row]="isCurrentUserRow(row)"
+            >
+              <td class="rank-cell">
+                <span class="medal" *ngIf="medal(row.rank)">{{ medal(row.rank) }}</span>
+                <span>{{ row.rank }}</span>
+              </td>
+              <td>
+                <div class="member-cell">
+                  <a [routerLink]="['/seasons', seasonLabel, 'members', row.username]" class="member-link">
+                    {{ row.displayName }}
+                  </a>
+                </div>
+              </td>
+              <td class="team-cell">
+                <span>{{ row.teamName }}</span>
+              </td>
+              <td class="points">{{ row.totalPoints }}</td>
+              <td>{{ row.pointsFromFirst }}</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div *ngIf="!loading && !error && (!standings || standings.length === 0)" class="card-state">
+          Aucune donnée.
+        </div>
+      </section>
+    </main>
+
+    <aside class="discussion-column">
+      <app-discussion-panel
+        [seasonLabel]="seasonLabel"
+        title="Discussion du pool"
+        emptyMessage="Aucun message pour cette saison."
+        [maxPosts]="10"
+        [showViewAllLink]="true"
+      />
+    </aside>
+  </div>
+</div>

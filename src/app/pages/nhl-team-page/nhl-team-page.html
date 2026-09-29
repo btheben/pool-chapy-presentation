@@ -1,0 +1,197 @@
+<div class="team-page">
+  <div class="team-hero" [style.background]="heroBackground">
+    <div *ngIf="loading" class="card loading-card">
+      Chargement...
+    </div>
+
+    <div *ngIf="error && !loading" class="card error-card">
+      {{ error }}
+    </div>
+
+    <ng-container *ngIf="!loading && data">
+      <div class="team-hero-overlay"></div>
+
+      <img
+        *ngIf="data.logoUrl"
+        class="team-hero-watermark"
+        [src]="data.logoUrl"
+        [alt]="data.teamCode"
+        (error)="onTeamLogoError($event)"
+      />
+
+      <div class="team-hero-inner">
+        <div class="team-hero-copy">
+          <a routerLink="/standings" class="back-link">← Retour au classement</a>
+
+          <div class="eyebrow">Équipe NHL · {{ data.seasonLabel }}</div>
+
+          <div class="team-hero-pills">
+            <span class="pill">{{ data.teamCode }}</span>
+            <span class="pill">{{ data.players.length }} joueurs</span>
+            <span class="pill">{{ data.draftedPlayerCount }} sélectionnés</span>
+            <span class="pill">{{ data.freeAgentCount }} libres</span>
+          </div>
+
+          <h1>{{ getTeamTitle() }}</h1>
+
+          <p class="team-hero-subtitle">
+            {{ data.players.length }} joueurs avec stats
+            <span>• {{ data.draftedPlayerCount }} sélectionnés</span>
+            <span>• {{ data.freeAgentCount }} libres</span>
+          </p>
+
+          <div class="team-hero-chips">
+            <div class="team-chip team-chip--strong">
+              <span>Pts pool</span>
+              <strong>{{ formatNumber(data.totalPoolPoints) }}</strong>
+            </div>
+
+            <div class="team-chip">
+              <span>Matchs</span>
+              <strong>{{ data.gamesPlayed }}</strong>
+            </div>
+
+            <div class="team-chip">
+              <span>Buts</span>
+              <strong>{{ data.goals }}</strong>
+            </div>
+
+            <div class="team-chip">
+              <span>Passes</span>
+              <strong>{{ data.assists }}</strong>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="drafted-team-banner"
+            *ngIf="hasDraftedTeam"
+            (click)="goToMember(data.draftedTeam.draftedByUsername)"
+          >
+            <span>Équipe sélectionnée</span>
+            <strong>
+              {{ data.draftedTeam.draftedByTeamName || data.draftedTeam.draftedByDisplayName }}
+              <ng-container *ngIf="data.draftedTeam.slotCode">
+                · {{ data.draftedTeam.slotCode }}
+              </ng-container>
+            </strong>
+          </button>
+        </div>
+
+        <div class="team-hero-media">
+          <div class="team-logo-shell">
+            <img
+              *ngIf="data.logoUrl"
+              class="team-hero-logo"
+              [src]="data.logoUrl"
+              [alt]="data.teamCode"
+              (error)="onTeamLogoError($event)"
+            />
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <main class="team-content" *ngIf="!loading && data">
+    <div class="team-toolbar card">
+      <div class="team-filter-tabs">
+        <button
+          type="button"
+          class="team-filter-tab"
+          [class.active]="filter === 'ALL'"
+          (click)="setFilter('ALL')"
+        >
+          Tous
+        </button>
+
+        <button
+          type="button"
+          class="team-filter-tab"
+          [class.active]="filter === 'DRAFTED'"
+          (click)="setFilter('DRAFTED')"
+        >
+          Sélectionnés
+        </button>
+
+        <button
+          type="button"
+          class="team-filter-tab"
+          [class.active]="filter === 'FREE_AGENT'"
+          (click)="setFilter('FREE_AGENT')"
+        >
+          Agents libres
+        </button>
+      </div>
+    </div>
+
+    <section class="team-roster-card card">
+      <div class="section-header">
+        <div>
+          <h2>Joueurs</h2>
+          <p>{{ filteredPlayers.length }} résultat{{ filteredPlayers.length > 1 ? 's' : '' }}</p>
+        </div>
+
+        <strong>{{ formatNumber(data.totalPoolPoints) }} pts</strong>
+      </div>
+
+      <div class="team-table-wrapper">
+        <table class="team-table">
+          <thead>
+          <tr>
+            <th class="col-player">Joueur</th>
+            <th class="col-small">Pos</th>
+            <th class="col-small">PJ</th>
+            <th class="col-small">B</th>
+            <th class="col-small">A</th>
+            <th class="col-small">V</th>
+            <th class="col-small">BL</th>
+            <th class="col-small">Pts</th>
+            <th class="col-pool">Pool</th>
+          </tr>
+          </thead>
+
+          <tbody>
+          <tr
+            *ngFor="let player of filteredPlayers"
+            [class.free-agent-row]="!player.drafted"
+          >
+            <td class="col-player">
+              <button
+                type="button"
+                class="player-name-button"
+                (click)="goToPlayer(player.playerId)"
+              >
+                {{ player.fullName }}
+              </button>
+            </td>
+
+            <td class="col-small">{{ player.positionCode }}</td>
+            <td class="col-small">{{ player.gamesPlayed }}</td>
+            <td class="col-small">{{ player.goals }}</td>
+            <td class="col-small">{{ player.assists }}</td>
+            <td class="col-small">{{ player.goalieWins || '-' }}</td>
+            <td class="col-small">{{ player.shutouts || '-' }}</td>
+            <td class="col-small points">{{ formatNumber(player.poolPoints) }}</td>
+
+            <td class="col-pool">
+              <button
+                type="button"
+                class="owner-badge"
+                *ngIf="player.drafted"
+                (click)="goToMember(player.draftedByUsername)"
+              >
+                {{ getOwnerLabel(player) }}
+              </button>
+
+              <span class="free-agent-badge" *ngIf="!player.drafted">
+                Libre
+              </span>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>

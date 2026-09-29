@@ -1,0 +1,143 @@
+<div class="preferences-page">
+  <section class="preferences-hero">
+    <div>
+      <div class="preferences-eyebrow">Préférences</div>
+      <h1>Personnalisez votre expérience PoolChapy</h1>
+      <p>Choisissez votre vue favorite et votre logo d’équipe.</p>
+    </div>
+  </section>
+
+  <section class="preferences-content">
+    <div *ngIf="loading" class="state-card">
+      Chargement...
+    </div>
+
+    <div *ngIf="error && !loading" class="state-card error">
+      {{ error }}
+    </div>
+
+    <ng-container *ngIf="!loading && preferences">
+      <div *ngIf="successMessage" class="state-card success">
+        {{ successMessage }}
+      </div>
+
+      <section class="prefs-card">
+        <div class="prefs-card-header">
+          <div>
+            <div class="card-eyebrow">Affichage</div>
+            <h2>Mode préféré</h2>
+          </div>
+        </div>
+
+        <div class="display-mode-grid">
+          <button
+            type="button"
+            class="display-mode-option"
+            [class.active]="selectedDisplayMode === 'MODERN'"
+            (click)="selectDisplayMode('MODERN')"
+          >
+            <strong>Vue moderne</strong>
+            <span>Plus riche, plus visuelle, plus immersive.</span>
+          </button>
+
+          <button
+            type="button"
+            class="display-mode-option"
+            [class.active]="selectedDisplayMode === 'SIMPLE'"
+            (click)="selectDisplayMode('SIMPLE')"
+          >
+            <strong>Vue simplifiée</strong>
+            <span>Plus compacte, plus classique, parfaite pour Mario 😄</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="prefs-card">
+        <div class="prefs-card-header logo-card-header">
+          <div>
+            <div class="card-eyebrow">Logo</div>
+            <h2>Logo de votre équipe</h2>
+          </div>
+
+          <div class="logo-header-actions">
+            <div class="logo-filter">
+              <label for="logoThemeFilter">Thème</label>
+
+              <select
+                id="logoThemeFilter"
+                [value]="selectedTheme"
+                (change)="selectTheme($any($event.target).value)"
+              >
+                <option value="ALL">Tous les thèmes</option>
+                <option *ngFor="let theme of logoThemes" [value]="theme">
+                  {{ theme }}
+                </option>
+              </select>
+            </div>
+
+            <button type="button" class="clear-logo-button" (click)="clearLogo()">
+              Aucun logo
+            </button>
+          </div>
+        </div>
+
+        <div class="logo-toolbar">
+          <div class="logo-count">
+            <strong>{{ filteredLogos.length }}</strong>
+            logo{{ filteredLogos.length > 1 ? 's' : '' }}
+            <span *ngIf="selectedTheme !== 'ALL'">
+              dans « {{ selectedThemeLabel }} »
+            </span>
+          </div>
+
+          <button
+            *ngIf="selectedTheme !== 'ALL'"
+            type="button"
+            class="reset-filter-button"
+            (click)="resetLogoFilter()"
+          >
+            Voir tous les logos
+          </button>
+        </div>
+
+        <div *ngIf="filteredLogos.length > 0" class="logo-grid">
+          <button
+            type="button"
+            class="logo-option"
+            *ngFor="let logo of filteredLogos"
+            [class.active]="selectedLogoAssetId === logo.id"
+            (click)="selectLogo(logo.id)"
+          >
+            <div class="logo-preview">
+              <img [src]="logo.logoUrl" [alt]="logo.displayName" />
+            </div>
+
+            <div class="logo-meta">
+              <strong>{{ logo.displayName }}</strong>
+              <span>{{ resolveLogoTheme(logo) }}</span>
+            </div>
+          </button>
+        </div>
+
+        <div *ngIf="filteredLogos.length === 0" class="empty-logo-state">
+          <strong>Aucun logo dans ce thème.</strong>
+          <span>Essaie un autre filtre ou reviens à tous les logos.</span>
+          <button type="button" (click)="resetLogoFilter()">
+            Voir tous les logos
+          </button>
+        </div>
+      </section>
+
+      <div class="preferences-actions">
+        <button
+          type="button"
+          class="save-button"
+          [disabled]="saving"
+          (click)="save()"
+        >
+          {{ saving ? 'Enregistrement...' : 'Enregistrer' }}
+        </button>
+      </div>
+    </ng-container>
+  </section>
+</div>

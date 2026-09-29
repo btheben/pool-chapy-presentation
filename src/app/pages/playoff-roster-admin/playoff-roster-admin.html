@@ -1,0 +1,408 @@
+<div class="page">
+  <div class="hero">
+    <div class="hero-copy">
+      <h1>Admin séries 2026</h1>
+      <p>Gestion du roster, des membres du pool et des synchronisations NHL.</p>
+    </div>
+  </div>
+
+  <div class="card admin-card">
+    <div *ngIf="loading" class="state-card">
+      Chargement...
+    </div>
+
+    <div *ngIf="!loading" class="content-grid">
+      <div class="left-column">
+        <div class="panel tabs-panel">
+          <div class="tab-nav">
+            <button
+              type="button"
+              class="tab-button"
+              [class.active]="activeTab === 'sync'"
+              (click)="setTab('sync')">
+              Sync
+            </button>
+
+            <button
+              type="button"
+              class="tab-button"
+              [class.active]="activeTab === 'roster'"
+              (click)="setTab('roster')">
+              Gestion équipe
+            </button>
+
+            <button
+              type="button"
+              class="tab-button"
+              [class.active]="activeTab === 'member'"
+              (click)="setTab('member')">
+              Ajout membre
+            </button>
+
+            <button
+              type="button"
+              class="tab-button"
+              [class.active]="activeTab === 'logo'"
+              (click)="setTab('logo')">
+              Logos
+            </button>
+          </div>
+
+          <ng-container [ngSwitch]="activeTab">
+            <!-- SYNC -->
+            <div *ngSwitchCase="'sync'" class="tab-section">
+              <div class="panel-header">
+                <div>
+                  <h2>Synchronisation NHL</h2>
+                  <p>Contrôle manuel des syncs quotidiens, live et rebuild complet.</p>
+                </div>
+              </div>
+
+              <div class="sync-grid">
+                <div>
+                  <label>Fenêtre quotidienne</label>
+                  <input type="number" min="0" [(ngModel)]="recentLookbackDays" />
+                </div>
+
+                <div class="sync-actions">
+                  <button class="primary" (click)="syncRecent()" [disabled]="isAnySyncing">
+                    {{ syncingMode === 'recent' ? 'Sync...' : 'Sync quotidien' }}
+                  </button>
+
+                  <button class="secondary" (click)="syncLiveNow()" [disabled]="isAnySyncing">
+                    {{ syncingMode === 'live' ? 'Sync...' : 'Live maintenant' }}
+                  </button>
+
+                  <button class="danger-ghost" (click)="syncFull()" [disabled]="isAnySyncing">
+                    {{ syncingMode === 'full' ? 'Rebuild...' : 'Rebuild complet' }}
+                  </button>
+                </div>
+              </div>
+
+              <p class="sync-help">
+                Le sync quotidien refait seulement les derniers jours. Le live resynchronise aujourd’hui.
+                Le rebuild complet est surtout utile en réparation ou en dev.
+              </p>
+
+              <p *ngIf="syncMessage" class="message">{{ syncMessage }}</p>
+              <p *ngIf="syncError" class="error">{{ syncError }}</p>
+            </div>
+
+            <!-- GESTION EQUIPE -->
+            <div *ngSwitchCase="'roster'" class="tab-section">
+              <div class="panel-header">
+                <div>
+                  <h2>Gestion du roster</h2>
+                  <p>Ajoute un joueur manuellement, corrige un slot ou nettoie un doublon.</p>
+                </div>
+              </div>
+
+              <div class="admin-summary" *ngIf="selectedMember">
+                <div class="summary-pill">
+                  <span>Membre</span>
+                  <strong>{{ selectedMember.displayName }}</strong>
+                </div>
+
+                <div class="summary-pill">
+                  <span>Slots remplis</span>
+                  <strong>{{ filledSlotsCount }}/12</strong>
+                </div>
+
+                <div class="summary-pill">
+                  <span>Entrées</span>
+                  <strong>{{ totalEntries }}</strong>
+                </div>
+
+                <div class="summary-pill" *ngIf="duplicateCount > 0">
+                  <span>Slots multi</span>
+                  <strong>{{ duplicateCount }}</strong>
+                </div>
+              </div>
+
+              <div class="form-grid">
+                <div>
+                  <label>Membre</label>
+                  <select [(ngModel)]="selectedUsername" (change)="onMemberChange()">
+                    <option *ngFor="let member of members" [value]="member.username">
+                      {{ memberLabel(member) }}
+                    </option>
+                  </select>
+                </div>
+
+                <div class="search-block search-block--wide">
+                  <label>Joueur / Équipe</label>
+                  <input
+                    [(ngModel)]="query"
+                    (input)="searchPlayers()"
+                    placeholder="Ex: Suzuki, McDavid, Montreal, Colorado"
+                  />
+
+                  <div class="results" *ngIf="players.length > 0">
+                    <button
+                      type="button"
+                      *ngFor="let player of players"
+                      (click)="selectPlayer(player)"
+                      [disabled]="player.alreadyAssigned"
+                      [class.already-assigned]="player.alreadyAssigned"
+                    >
+                      <div class="result-left">
+                        <div
+                          class="team-logo-inline team-logo-inline--search"
+                          *ngIf="player.teamCode"
+                          [attr.title]="player.teamCode"
+                        >
+                          <img
+                            [src]="getTeamLogoUrl(player.teamCode)"
+                            [alt]="player.teamCode"
+                            class="team-logo team-logo--search"
+                            (error)="onTeamLogoError($event)"
+                          />
+                        </div>
+
+                        <span class="result-main">{{ playerLabel(player) }}</span>
+                      </div>
+
+                      <small>
+                        {{ player.positionCode }} • {{ player.teamCode || 'N/A' }}
+                        <span *ngIf="player.alreadyAssigned && player.assignedToTeamName">
+                          • déjà pris
+                        </span>
+                      </small>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="auto-slot-hint">
+                  Le joueur sera ajouté automatiquement au premier slot disponible de sa catégorie.
+                </div>
+
+                <div class="selected" *ngIf="selectedPlayer">
+                  <div class="selected-copy">
+                    <strong>Joueur sélectionné</strong>
+                    <span>{{ selectedPlayer.fullName }}</span>
+                    <small>{{ selectedPlayer.positionCode }} • {{ selectedPlayer.teamCode || 'N/A' }}</small>
+                  </div>
+
+                  <button type="button" class="ghost-button" (click)="clearSelectedPlayer()">
+                    Retirer
+                  </button>
+                </div>
+
+                <div class="form-actions">
+                  <button class="primary" (click)="addPlayer()" [disabled]="saving">
+                    {{ saving ? 'Ajout...' : 'Ajouter au roster' }}
+                  </button>
+                </div>
+              </div>
+
+              <p *ngIf="searching" class="info-text">Recherche...</p>
+              <p *ngIf="message" class="message">{{ message }}</p>
+              <p *ngIf="error" class="error">{{ error }}</p>
+            </div>
+
+            <!-- AJOUT MEMBRE -->
+            <div *ngSwitchCase="'member'" class="tab-section">
+              <div class="panel-header">
+                <div>
+                  <h2>Ajouter un membre au pool</h2>
+                  <p>Ajoute un utilisateur existant comme membre de cette saison.</p>
+                </div>
+              </div>
+
+              <div class="member-form-grid member-form-grid--single">
+                <div>
+                  <label>Utilisateur</label>
+                  <select [(ngModel)]="newMemberUsername">
+                    <option value="">Choisir un utilisateur</option>
+                    <option *ngFor="let user of availableUsers" [value]="user.username">
+                      {{ user.displayName }} ({{ user.username }})
+                    </option>
+                  </select>
+                </div>
+
+                <div>
+                  <label>Nom d’équipe</label>
+                  <input
+                    [(ngModel)]="newMemberTeamName"
+                    placeholder="Optionnel — défaut: nom affiché"
+                  />
+                </div>
+
+                <div class="member-form-actions">
+                  <button class="primary" type="button" (click)="addMemberToSeason()" [disabled]="addingMember">
+                    {{ addingMember ? 'Ajout...' : 'Ajouter le membre' }}
+                  </button>
+                </div>
+              </div>
+
+              <p *ngIf="message" class="message">{{ message }}</p>
+              <p *ngIf="error" class="error">{{ error }}</p>
+            </div>
+
+            <!-- LOGOS -->
+            <div *ngSwitchCase="'logo'" class="tab-section">
+              <div class="panel-header">
+                <div>
+                  <h2>Logo d’équipe</h2>
+                  <p>Assigne un logo personnalisé ou NHL à un membre du pool.</p>
+                </div>
+              </div>
+
+              <div class="logo-member-row">
+                <div>
+                  <label>Membre</label>
+                  <select [(ngModel)]="selectedUsername" (change)="onMemberChange()">
+                    <option *ngFor="let member of members" [value]="member.username">
+                      {{ memberLabel(member) }}
+                    </option>
+                  </select>
+                </div>
+
+                <div class="current-logo-card" *ngIf="selectedLogoAsset as logo">
+                  <span>Logo sélectionné</span>
+                  <strong>{{ logo.displayName }}</strong>
+                </div>
+              </div>
+
+              <div *ngIf="logosLoading" class="state-card compact-state">
+                Chargement des logos...
+              </div>
+
+              <div class="logo-picker-grid" *ngIf="!logosLoading">
+                <button
+                  type="button"
+                  class="logo-choice"
+                  *ngFor="let logo of logoAssets"
+                  [class.selected]="selectedLogoAssetId === logo.id"
+                  (click)="selectLogo(logo)"
+                >
+                  <div class="logo-choice-image-wrap">
+                    <img [src]="logo.logoUrl" [alt]="logo.displayName" class="logo-choice-image" />
+                  </div>
+
+                  <div class="logo-choice-copy">
+                    <strong>{{ logo.displayName }}</strong>
+                    <span>{{ logo.theme || logo.sourceType }}</span>
+                  </div>
+                </button>
+              </div>
+
+              <div class="logo-actions">
+                <button class="ghost-button" type="button" (click)="clearLogo()">
+                  Aucun logo
+                </button>
+
+                <button class="primary" type="button" (click)="saveSelectedLogo()" [disabled]="savingLogo">
+                  {{ savingLogo ? 'Sauvegarde...' : 'Assigner ce logo' }}
+                </button>
+              </div>
+
+              <p *ngIf="logoMessage" class="message">{{ logoMessage }}</p>
+              <p *ngIf="logoError" class="error">{{ logoError }}</p>
+            </div>
+          </ng-container>
+        </div>
+      </div>
+
+      <div class="right-column">
+        <div class="roster-card">
+          <div class="roster-header">
+            <div>
+              <h2>Roster actuel</h2>
+              <p *ngIf="roster">
+                {{ roster.displayName }} • {{ filledSlotsCount }}/12 slots remplis • {{ totalEntries }} entrées
+              </p>
+            </div>
+            <span *ngIf="rosterLoading" class="loading-inline">Chargement...</span>
+          </div>
+
+          <div class="table-scroll" *ngIf="!rosterLoading && roster">
+            <table class="raw-roster-table roster-main-table">
+              <thead>
+              <tr>
+                <th>Slot</th>
+                <th>Joueur</th>
+                <th>Pos</th>
+                <th>NHL</th>
+                <th>M</th>
+                <th>B</th>
+                <th>A</th>
+                <th>Pool</th>
+                <th>NC</th>
+                <th></th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr
+                *ngFor="let player of rosterEntriesSorted; trackBy: trackByRosterAssignment"
+                [class.duplicate-row]="hasDuplicateSlot(player.slotCode)"
+              >
+                <td>
+                  <div class="slot-pill-wrap">
+                    <span class="slot-pill">{{ player.slotCode }}</span>
+                  </div>
+                </td>
+
+                <td>
+                  <div class="player-admin-cell">
+                    <div
+                      class="team-logo-inline"
+                      *ngIf="player.nhlTeamCode"
+                      [attr.title]="player.nhlTeamCode"
+                    >
+                      <img
+                        [src]="getTeamLogoUrl(player.nhlTeamCode)"
+                        [alt]="player.nhlTeamCode"
+                        class="team-logo team-logo--inline"
+                        (error)="onTeamLogoError($event)"
+                      />
+                    </div>
+
+                    <a [routerLink]="['/players', player.playerId]" class="player-link">
+                      {{ player.playerName }}
+                    </a>
+                  </div>
+                </td>
+
+                <td>{{ player.positionCode }}</td>
+                <td>{{ player.nhlTeamCode || '—' }}</td>
+                <td>{{ player.gamesPlayed }}</td>
+                <td>{{ player.goals }}</td>
+                <td>{{ player.assists }}</td>
+                <td class="points">{{ player.poolPoints }}</td>
+
+                <td>
+                  <span class="player-badge player-badge--excluded" *ngIf="!player.countsForTotals">
+                    <span class="player-badge-icon">✕</span>
+                  </span>
+                </td>
+
+                <td class="actions">
+                  <button
+                    type="button"
+                    class="icon-button icon-button--danger"
+                    [disabled]="removingAssignmentId === player.rosterAssignmentId"
+                    (click)="removeRosterPlayer(player.rosterAssignmentId, player.playerName)"
+                    [attr.aria-label]="'Supprimer ' + player.playerName"
+                    [attr.title]="'Supprimer ' + player.playerName"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v8h-2V9zm4 0h2v8h-2V9zM7 9h2v8H7V9zm-1 11h12l1-13H5l1 13z"
+                      />
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="state-card compact-state" *ngIf="roster && !roster.roster?.length">
+            Aucun joueur actuellement dans ce roster.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
